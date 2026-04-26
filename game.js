@@ -22,7 +22,6 @@ const MOVE_DELAY = 135;
 
 const STATE = {
   MENU: "MENU",
-  CONTROLS: "CONTROLS",
   INTRO: "INTRO",
   EXPLORE: "EXPLORE",
   DIALOGUE: "DIALOGUE",
@@ -34,7 +33,6 @@ const STATE = {
 
 let state = STATE.MENU;
 let previousState = STATE.MENU;
-let menuIndex = 0;
 let battleIndex = 0;
 let controlsPulse = 0;
 let frameTime = 0;
@@ -50,10 +48,21 @@ let game = makeFreshGame();
 const muteButton = document.getElementById("muteButton");
 const audio = {
   muted: false,
-  ctx: null
+  ctx: null,
+  titleMusic: {
+    osc: null,
+    gain: null,
+    timer: null,
+    noteIndex: 0
+  }
 };
+const TITLE_MUSIC_NOTES = [
+  392, 523, 659, 587, 523, 440, 494, 523,
+  392, 523, 698, 659, 587, 523, 440, 0
+];
 
 muteButton.addEventListener("click", () => {
+  initAudio();
   toggleMute();
 });
 
@@ -214,10 +223,6 @@ function handleKeyPress(key) {
 
   if (state === STATE.MENU) {
     handleMenuKey(key);
-  } else if (state === STATE.CONTROLS) {
-    if (isConfirm(key) || key === "escape") {
-      state = STATE.MENU;
-    }
   } else if (state === STATE.INTRO) {
     state = STATE.EXPLORE;
     beep("start");
@@ -248,18 +253,8 @@ function handleKeyPress(key) {
 }
 
 function handleMenuKey(key) {
-  if (key === "arrowup" || key === "w") {
-    menuIndex = (menuIndex + 1) % 2;
-    beep("menu");
-  } else if (key === "arrowdown" || key === "s") {
-    menuIndex = (menuIndex + 1) % 2;
-    beep("menu");
-  } else if (isConfirm(key)) {
-    if (menuIndex === 0) {
-      startNewRun();
-    } else {
-      state = STATE.CONTROLS;
-    }
+  if (isConfirm(key)) {
+    startNewRun();
   }
 }
 
@@ -295,6 +290,7 @@ function loop(timestamp) {
 
 function update(dt) {
   controlsPulse += dt;
+  syncTitleMusic();
   if (state !== STATE.EXPLORE) {
     return;
   }
@@ -1678,6 +1674,7 @@ function randInt(min, max) {
 }
 
 function startNewRun() {
+  stopTitleMusic();
   game = makeFreshGame();
   dialogue = null;
   battle = null;
@@ -1694,8 +1691,6 @@ function render() {
 
   if (state === STATE.MENU) {
     drawMenu();
-  } else if (state === STATE.CONTROLS) {
-    drawControls();
   } else if (state === STATE.INTRO) {
     drawIntro();
   } else if (state === STATE.GAME_OVER) {
@@ -1716,42 +1711,18 @@ function render() {
 
 function drawMenu() {
   drawOceanBackdrop();
-  drawPixelText("MONKEY", 132, 54, 3, "#ffd166");
-  drawPixelText("ADVENTURE PIRATE", 54, 86, 2, "#fff1b8");
-  drawTinyPlayer(184, 121, 2);
-  const items = ["Start Game", "Controls"];
-  items.forEach((item, index) => {
-    const y = 164 + index * 24;
-    drawPanel(122, y - 12, 140, 19, index === menuIndex ? "#364f7a" : "#1d2540");
-    useTextFont(11);
-    ctx.fillStyle = index === menuIndex ? "#ffd166" : "#fff1b8";
-    ctx.fillText((index === menuIndex ? "> " : "  ") + item, 144, y);
-  });
-  useTextFont(9);
-  ctx.fillStyle = "#94b0c2";
-  ctx.fillText("Press Enter, Space, or E", 138, 226);
-}
-
-function drawControls() {
-  drawOceanBackdrop();
-  drawPanel(34, 34, 316, 180, "#1d2540");
-  ctx.fillStyle = "#ffd166";
-  useTextFont(18);
-  ctx.fillText("Controls", 144, 62);
+  drawCenteredPixelText("MONKEY", WIDTH / 2, 54, 3, "#ffd166");
+  drawCenteredPixelText("ADVENTURE", WIDTH / 2, 86, 2, "#fff1b8");
+  drawCenteredPixelText("PIRATE", WIDTH / 2, 106, 2, "#fff1b8");
+  drawTinyPlayer(184, 122, 2);
+  drawPanel(122, 156, 140, 21, "#364f7a");
   useTextFont(11);
-  ctx.fillStyle = "#fff1b8";
-  const lines = [
-    "Arrow Keys or WASD: Move",
-    "E or Space: Interact / Confirm",
-    "Escape: Pause or Back",
-    "M: Mute / Unmute",
-    "",
-    "Find three raft parts, repair the raft,",
-    "then brave reef, volcano, cove, mangrove, storm, dunes, wrecks, and royal ruins."
-  ];
-  lines.forEach((line, i) => ctx.fillText(line, 62, 92 + i * 16));
-  ctx.fillStyle = controlsPulse % 900 < 450 ? "#74f29c" : "#94b0c2";
-  ctx.fillText("Press E, Space, Enter, or Escape", 90, 198);
+  ctx.fillStyle = "#ffd166";
+  ctx.fillText("> Start Game", 144, 170);
+  drawPanel(67, 190, 250, 25, "#1d2540");
+  drawCenteredText("Move: Arrows / WASD", 200, 9, "#fff1b8", "#101018");
+  drawCenteredText("Action: E / Space   Pause: Esc", 211, 8, "#dfe8ef", "#101018");
+  drawCenteredText("Press Enter, Space, or E", 231, 9, "#101018", "#fff1b8");
 }
 
 function drawIntro() {
@@ -2305,6 +2276,21 @@ function drawPixelText(text, x, y, scale, color) {
   useTextFont(8 * scale);
   ctx.fillStyle = "#101018";
   ctx.fillText(text, x + scale, y + scale);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
+function drawCenteredPixelText(text, centerX, y, scale, color) {
+  useTextFont(8 * scale);
+  const x = Math.round(centerX - ctx.measureText(text).width / 2);
+  drawPixelText(text, x, y, scale, color);
+}
+
+function drawCenteredText(text, y, size, color, shadow = "#101018") {
+  useTextFont(size);
+  const x = Math.round((WIDTH - ctx.measureText(text).width) / 2);
+  ctx.fillStyle = shadow;
+  ctx.fillText(text, x + 1, y + 1);
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);
 }
@@ -3336,14 +3322,86 @@ function initAudio() {
       audio.ctx = new AudioContext();
     }
   }
+  if (audio.ctx && audio.ctx.state === "suspended" && audio.ctx.resume) {
+    audio.ctx.resume();
+  }
+  syncTitleMusic();
 }
 
 function toggleMute() {
   audio.muted = !audio.muted;
   muteButton.textContent = audio.muted ? "Sound Off" : "Sound On";
+  if (audio.muted) {
+    stopTitleMusic();
+    return;
+  }
   if (!audio.muted) {
     beep("menu");
   }
+  syncTitleMusic();
+}
+
+function syncTitleMusic() {
+  if (!audio.ctx || audio.muted || state !== STATE.MENU) {
+    stopTitleMusic();
+    return;
+  }
+  if (audio.ctx.state === "suspended" && audio.ctx.resume) {
+    audio.ctx.resume();
+  }
+  startTitleMusic();
+}
+
+function startTitleMusic() {
+  if (audio.titleMusic.osc || !audio.ctx) {
+    return;
+  }
+  const osc = audio.ctx.createOscillator();
+  const gain = audio.ctx.createGain();
+  osc.type = "triangle";
+  gain.gain.setValueAtTime(0.024, audio.ctx.currentTime);
+  osc.connect(gain);
+  gain.connect(audio.ctx.destination);
+  audio.titleMusic.osc = osc;
+  audio.titleMusic.gain = gain;
+  playTitleMusicNote();
+  osc.start();
+  audio.titleMusic.timer = setInterval(playTitleMusicNote, 220);
+}
+
+function playTitleMusicNote() {
+  if (!audio.ctx || !audio.titleMusic.osc) {
+    return;
+  }
+  const note = TITLE_MUSIC_NOTES[audio.titleMusic.noteIndex % TITLE_MUSIC_NOTES.length];
+  audio.titleMusic.noteIndex += 1;
+  const time = audio.ctx.currentTime;
+  if (note > 0) {
+    audio.titleMusic.osc.frequency.setValueAtTime(note, time);
+    audio.titleMusic.gain.gain.cancelScheduledValues(time);
+    audio.titleMusic.gain.gain.setValueAtTime(0.024, time);
+  } else {
+    audio.titleMusic.gain.gain.setValueAtTime(0.001, time);
+  }
+}
+
+function stopTitleMusic() {
+  if (audio.titleMusic.timer) {
+    clearInterval(audio.titleMusic.timer);
+    audio.titleMusic.timer = null;
+  }
+  if (audio.titleMusic.osc && audio.ctx) {
+    const osc = audio.titleMusic.osc;
+    const gain = audio.titleMusic.gain;
+    const time = audio.ctx.currentTime;
+    gain.gain.cancelScheduledValues(time);
+    gain.gain.setValueAtTime(gain.gain.value || 0.001, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+    osc.stop(time + 0.1);
+  }
+  audio.titleMusic.osc = null;
+  audio.titleMusic.gain = null;
+  audio.titleMusic.noteIndex = 0;
 }
 
 function beep(kind) {
