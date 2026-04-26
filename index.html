@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monkey Adventure Pirate</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-shell" aria-label="Monkey Adventure Pirate browser game">
+    <div class="game-stage">
+      <canvas id="game" width="384" height="256" aria-label="Monkey Adventure Pirate game canvas"></canvas>
+      <div id="hudOverlay" class="hud-overlay is-hidden">
+        <div class="hud-row hud-row-main">
+          <span id="hudHp">HP 20/20</span>
+          <span id="hudBananas">Bananas 4</span>
+          <span id="hudParts">Inventory 0</span>
+          <span id="hudMap">Banana Skull Island</span>
+        </div>
+        <div class="hud-row hud-row-parts" id="hudPartList">Inventory: Empty</div>
+        <div class="hud-row hud-row-objective" id="hudObjective">Objective: Find the raft parts</div>
+      </div>
+    </div>
+    <div id="touchControls" class="touch-controls" aria-label="Touch controls">
+      <div class="touch-dpad" aria-label="Movement controls">
+        <span class="touch-button touch-spacer" aria-hidden="true"></span>
+        <button class="touch-button" type="button" data-hold-key="arrowup" aria-label="Move up">&uarr;</button>
+        <span class="touch-button touch-spacer" aria-hidden="true"></span>
+        <button class="touch-button" type="button" data-hold-key="arrowleft" aria-label="Move left">&larr;</button>
+        <span class="touch-button touch-center" aria-hidden="true"></span>
+        <button class="touch-button" type="button" data-hold-key="arrowright" aria-label="Move right">&rarr;</button>
+        <span class="touch-button touch-spacer" aria-hidden="true"></span>
+        <button class="touch-button" type="button" data-hold-key="arrowdown" aria-label="Move down">&darr;</button>
+        <span class="touch-button touch-spacer" aria-hidden="true"></span>
+      </div>
+      <div class="touch-actions" aria-label="Action controls">
+        <button class="touch-button touch-action" type="button" data-tap-key="e" aria-label="Interact or confirm">E</button>
+        <button class="touch-button touch-action" type="button" data-tap-key="escape" aria-label="Pause or back">II</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button id="muteButton" type="button" aria-label="Toggle sound">Sound On</button>
+    </div>
+  </main>
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
